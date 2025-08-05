@@ -1,4 +1,4 @@
-from aeon.file_formats.ts import load_from_tsfile_to_dataframep
+from sktime.datasets import load_from_tsfile_to_dataframe
 from projection import random_projection
 from classifier import one_nn_classifier
 
