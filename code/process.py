@@ -10,7 +10,6 @@ from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
 
-
 def process(
     path,
     model="knn",

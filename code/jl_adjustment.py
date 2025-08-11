@@ -55,7 +55,6 @@ def get_jl_output_dim_from_data(X, epsilon: float) -> int:
 
     return int(np.ceil(4 * np.log(n) / (epsilon ** 2)))
 
-
 def get_jl_output_dim_from_tsfile(filepath: str, epsilon: float) -> int:
     """
     Compute the Johnson-Lindenstrauss backed random projection dimensionality directly from a
