@@ -21,8 +21,8 @@ def apply_proj(X, projection="gaussian", epsilon=0.2, random_state=21):
     
     projection : {"gaussian", "sparse"}, default="gaussian"
         Type of random projection to use:
-        - "gaussian" → Gaussian Random Projection.
-        - "sparse"   → Sparse Random Projection.
+        - "gaussian" : Gaussian Random Projection.
+        - "sparse"   : Sparse Random Projection.
     
     epsilon : float, default=0.2
         Tolerance parameter for the JL lemma. Controls the quality of the projection:
