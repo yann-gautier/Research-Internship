@@ -28,14 +28,14 @@ def process(
     """
     Process and evaluate a time series classification pipeline.
 
-    This function loads a time series dataset from a `.ts` file, optionally applies a random projection
+    This function loads a time series dataset from a '.ts' file, optionally applies a random projection
     (dimensionality reduction), selects and trains a classification model, and evaluates its performance
     using cross-validation and by optionally plotting a learning curve.
 
     Parameters
     ----------
     path : str
-        Path to the `.ts` file containing the time series dataset.
+        Path to the '.ts' file containing the time series dataset.
     model : {"knn", "ee", "hivecotev1", "hivecotev2"}, default="knn"
         Classification model to use:
             - "knn": k-Nearest Neighbors classifier for time series.
@@ -43,9 +43,9 @@ def process(
             - "hivecotev1": HIVE-COTE version 1 classifier.
             - "hivecotev2": HIVE-COTE version 2 classifier.
     distance : str, default="euclidean"
-        Distance metric for k-NN (only applicable when `model="knn"`).
+        Distance metric for k-NN (only applicable when 'model="knn"').
     n_neighbors : int, default=1
-        Number of neighbors for k-NN (only applicable when `model="knn"`).
+        Number of neighbors for k-NN (only applicable when 'model="knn"').
     lc : {"y", "n"}, default="y"
         Whether to plot a learning curve ("y") or only display cross-validation scores ("n").
     lc_splits : int, default=10
@@ -71,7 +71,7 @@ def process(
     Raises
     ------
     ValueError
-        If `proj` or `model` is not one of the allowed values.
+        If 'proj' or 'model' is not one of the allowed values.
 
     Notes
     -----
