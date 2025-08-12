@@ -1,4 +1,3 @@
-# Run this to find available classifiers in your sktime version
 import sktime
 
 print("=== Dictionary-based classifiers ===")
