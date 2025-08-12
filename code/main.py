@@ -5,7 +5,7 @@ def main():
     """
     Command-line interface for time series classification with optional random projection.
 
-    This script serves as a front-end for the `process` function defined in `process.py`.
+    This script serves as a front-end for the 'process' function defined in 'process.py'.
     It allows users to specify dataset path, model type, projection settings, 
     and evaluation parameters directly from the command line.
     """
