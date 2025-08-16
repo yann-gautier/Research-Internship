@@ -8,4 +8,4 @@ To be documented: the returns of the process function, with thee pandas datafram
 
 To be done: the reproducibility file enabling to generate our results
 
-Dans nos expérimentations, on va tester k_values = [1, 3, 5, 7, 9, 11, 15, 21, 31] pour les plus proches voisins, distance : dtw, ee. On teste avec projection gaussienne, pojection creuse, sans projection. Ce qui fait 28 modèles, avec 10 tailles différentes de données d'entraînement, donc 280 modèles entraînés, fois 5 cross validations. Donc 1400 entraînements.
+Dans nos expérimentations, on va tester k_values = [1, 3, 5, 7, 9, 11, 15, 21, 31] pour les plus proches voisins, distance : dtw, et modèle ee. On teste avec projection gaussienne, pojection creuse, sans projection. Ce qui fait 28 modèles, avec 10 tailles différentes de données d'entraînement, donc 280 modèles entraînés, fois 5 cross validations. Donc 1400 entraînements.

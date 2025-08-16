@@ -5,7 +5,7 @@ from sktime.datasets import load_from_tsfile_to_dataframe
 from projection import apply_proj
 from sklearn.model_selection import learning_curve
 from sklearn.base import clone
-#from sktime.classification.dictionary_based import ElasticEnsemble
+from sktime.classification.distance_based import ElasticEnsemble
 from sktime.classification.hybrid import HIVECOTEV1
 from sktime.classification.hybrid import HIVECOTEV2
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
@@ -234,8 +234,8 @@ def process(
         proj_time=0
     
     # Initialize the chosen model
-    # if model == "ee":
-    #     est = ElasticEnsemble(random_state=rs2)
+    if model == "ee":
+        est = ElasticEnsemble(random_state=rs2)
     if model == "hivecotev1":
         est = HIVECOTEV1(random_state=rs2)
     elif model == "hivecotev2":
