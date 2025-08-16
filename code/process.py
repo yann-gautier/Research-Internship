@@ -1,33 +1,159 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from sktime.datasets import load_from_tsfile_to_dataframe
 from projection import apply_proj
 from sklearn.model_selection import learning_curve
+from sklearn.base import clone
 #from sktime.classification.dictionary_based import ElasticEnsemble
 from sktime.classification.hybrid import HIVECOTEV1
 from sktime.classification.hybrid import HIVECOTEV2
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
+import pandas as pd
+
+def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
+    """
+    Custom version of cross_val_score that measures training and inference times.
+    
+    Returns
+    -------
+    scores : array
+        Validation scores for each fold
+    training_times : array  
+        Training time for each fold
+    inference_times : array  
+        Inference time for each fold
+    """
+    scores = []
+    training_times = []
+    inference_times = []
+    
+    for train_idx, test_idx in cv.split(X, y):
+        # Split training and test data
+        X_train = X.iloc[train_idx] if hasattr(X, 'iloc') else X[train_idx]
+        X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        # Clone the estimator for each fold
+        est_clone = clone(estimator)
+        
+        # Measure training time
+        start_time = time.time()
+        est_clone.fit(X_train, y_train)
+        end_time = time.time()
+        
+        training_time = end_time - start_time
+        training_times.append(training_time)
+        
+        # Evaluate the model and measure inference time
+        start_inference = time.time()
+        score = est_clone.score(X_test, y_test)
+        inference_time = time.time() - start_inference
+        inference_times.append(inference_time)
+        scores.append(score)
+        
+        print(f"Fold training time: {training_time:.3f}s, Score: {score:.3f}")
+    
+    return np.array(scores), np.array(training_times), np.array(inference_times)
+
+def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring='accuracy'):
+    """
+    Custom version of learning_curve that measures training and inference times.
+    
+    Returns
+    -------
+    train_sizes_abs : array
+        Absolute sizes of the training sets
+    train_scores : array
+        Training scores for each size and fold
+    test_scores : array  
+        Test scores for each size and fold
+    training_times : array
+        Training times for each size and fold
+    inference_times : array
+        Inference times for each size and fold
+    """
+    n_samples = len(X)
+    train_sizes_abs = np.array([int(size * n_samples) for size in train_sizes])
+    
+    train_scores = []
+    test_scores = []
+    training_times = []
+    inference_times = []
+    
+    for train_size in train_sizes_abs:
+        train_scores_size = []
+        test_scores_size = []
+        training_times_size = []
+        inference_times_size = []
+        
+        print(f"\nTraining with {train_size} samples:")
+        
+        for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y)):
+            # Limit training set size
+            train_idx_subset = train_idx[:train_size]
+            
+            X_train = X.iloc[train_idx_subset] if hasattr(X, 'iloc') else X[train_idx_subset]
+            X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
+            y_train, y_test = y[train_idx_subset], y[test_idx]
+            
+            # Clone the estimator
+            est_clone = clone(estimator)
+            
+            # Measure training time
+            start_time = time.time()
+            est_clone.fit(X_train, y_train)
+            end_time = time.time()
+            
+            training_time = end_time - start_time
+            training_times_size.append(training_time)
+            
+            # Evaluate on training set
+            train_score = est_clone.score(X_train, y_train)
+            train_scores_size.append(train_score)
+            
+            # Evaluate on test set
+            start_inference = time.time()
+            test_score = est_clone.score(X_test, y_test)
+            inference_time = time.time() - start_inference
+            inference_times_size.append(inference_time)
+            test_scores_size.append(test_score)
+            
+            print(f"  Fold {fold_idx+1}: {training_time:.3f}s, Train: {train_score:.3f}, Test: {test_score:.3f}")
+        
+        train_scores.append(train_scores_size)
+        test_scores.append(test_scores_size)
+        training_times.append(training_times_size)
+        inference_times.append(inference_times_size)
+    
+    return (np.array(train_sizes_abs), 
+            np.array(train_scores), 
+            np.array(test_scores), 
+            np.array(training_times),
+            np.array(inference_times))
 
 def process(
     path,
     model="knn",
-    distance="euclidean",
-    n_neighbors=1,
+    dist="euclidean",
+    k_neighbors=1,
     lc="y",
     lc_splits=10,
     proj="gaussian",
     eps=0.2,
     cv_splits=5,
+    plot="n",
+    df_export="n",
     rs=None,
-    rs1=21,
+    rs1=12,
     rs2=21,
-    rs3=21
+    rs3=42
 ):
     """
-    Process and evaluate a time series classification pipeline.
-
+    Process and evaluate a time series classification pipeline with timing measurements.
+    
     This function loads a time series dataset from a '.ts' file, optionally applies a random projection
     (dimensionality reduction), selects and trains a classification model, and evaluates its performance
     using cross-validation and by optionally plotting a learning curve.
@@ -47,7 +173,7 @@ def process(
     n_neighbors : int, default=1
         Number of neighbors for k-NN (only applicable when 'model="knn"').
     lc : {"y", "n"}, default="y"
-        Whether to plot a learning curve ("y") or only display cross-validation scores ("n").
+        Whether to compute a learning curve ("y") or only compute cross-validation scores ("n").
     lc_splits : int, default=10
         Number of training size splits for the learning curve.
     proj : {"gaussian", "sparse", "no"}, default="gaussian"
@@ -59,6 +185,10 @@ def process(
         Epsilon parameter for the projection step (controls the projection accuracy).
     cv_splits : int, default=5
         Number of folds for Stratified K-Fold cross-validation.
+    plot : {"y", "n"}, default="n"
+        Whether to plot the learning curve statistics ("y") or only compute and print the values ("n").
+    df_export : {"y", "n"}, default="n"
+        Whether to return a pandas dataframe containing all the results ("y") or not ("n").
     rs : int or None, default=None
         If provided, overrides rs1, rs2, and rs3 with the same random seed.
     rs1 : int, default=21
@@ -96,7 +226,12 @@ def process(
     
     # Apply projection if enabled
     if proj != "no":
+        start_time=time.time()
         X = apply_proj(X, projection=proj, epsilon=eps, random_state=rs1)
+        proj_time=time.time() - start_time
+    
+    else:
+        proj_time=0
     
     # Initialize the chosen model
     # if model == "ee":
@@ -107,48 +242,99 @@ def process(
         est = HIVECOTEV2(random_state=rs2)
     else:  # "knn"
         est = KNeighborsTimeSeriesClassifier(
-            n_neighbors=n_neighbors,
-            distance=distance
+            n_neighbors=k_neighbors,
+            distance=dist
         )
     
     # Define cross-validation strategy
-    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=rs3)
+    crv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=rs3)
     
     # If learning curve is requested
     if lc == "y":
-        # Compute learning curve data
-        train_sizes, train_scores, test_scores = learning_curve(
+        # Compute learning curve data with timing
+        train_sizes, train_scores, test_scores, training_times, inference_times = custom_learning_curve_with_timing(
             estimator=est,
             X=X,
             y=y,
             train_sizes=np.linspace(0.1, 1.0, lc_splits),
-            cv=cv,
+            cv=crv,
             scoring="accuracy"
         )
 
-        # Plot training and validation accuracy curves
-        plt.plot(train_sizes, np.mean(train_scores, axis=1), label="Training accuracy")
-        plt.plot(train_sizes, np.mean(test_scores, axis=1), label="Validation accuracy")
-        plt.xlabel("Training set size")
-        plt.ylabel("Accuracy")
-        plt.title("Learning curve:")
-        plt.legend()
-        plt.grid()
-        plt.show()
+        mean_training_times = np.mean(training_times, axis=1)
+        mean_accuracy_scores = np.mean(test_scores, axis=1)
+        mean_inference_times = np.mean(inference_times, axis=1)
+        std_training_times = np.std(training_times, axis=1)
 
-        # Display test scores for each split
-        print(f"Accuracy scores: {test_scores}")
+        # Export a pandas dataframe containing the results
+        if df_export=="y":
+            columns = [f"{col} {i+1}"
+                    for i in range(len(mean_training_times))
+                    for col in ["mean_accuracy", "mean_total_time", "mean_training_time", "mean_inference_time", "projection_time"]]
+
+            df = pd.DataFrame(index=range(1), columns=columns)
+            df.loc[0]=[elt[i]
+                for i in range(len(mean_training_times))
+                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time]
+            ]
+
+        if plot!="n":
+            # Plot training and validation accuracy curves
+            plt.figure(figsize=(12, 4))
+        
+            plt.subplot(1, 2, 1)
+            plt.plot(train_sizes, np.mean(train_scores, axis=1), label="Training accuracy")
+            plt.plot(train_sizes, np.mean(test_scores, axis=1), label="Validation accuracy")
+            plt.xlabel("Training set size")
+            plt.ylabel("Accuracy")
+            plt.title("Learning curve")
+            plt.legend()
+            plt.grid()
+        
+            # Plot training times
+            plt.subplot(1, 2, 2)
+            plt.plot(train_sizes, mean_training_times, 'r-', label="Mean training time")
+            plt.fill_between(train_sizes, mean_training_times - std_training_times, mean_training_times + std_training_times, alpha=0.3)
+            plt.xlabel("Training set size")
+            plt.ylabel("Training time (seconds)")
+            plt.title("Training time curve")
+            plt.legend()
+            plt.grid()
+        
+            plt.tight_layout()
+            plt.show()
+
+        # Display detailed statistics
+        print(f"\n=== LEARNING CURVE RESULTS ===")
+        print(f"Test accuracy scores: {test_scores}")
+        print(f"Mean test accuracy: {test_scores.mean():.3f}")
+        print(f"Training times (seconds): {training_times}")
+        print(f"Mean training time per fold: {training_times.mean():.3f}s")
+        print(f"Total training time: {training_times.sum():.3f}s")
+        print(f"Min/Max training time: {training_times.min():.3f}s / {training_times.max():.3f}s")
     
     else:
-        # Perform standard cross-validation without plotting
-        scores = cross_val_score(
+        # Perform standard cross-validation with timing
+        print("=== CROSS-VALIDATION WITH TIMING ===")
+        scores, training_times, inference_times = custom_cross_val_score_with_timing(
             estimator=est,
             X=X,
             y=y,
-            cv=cv,
+            cv=crv,
             scoring='accuracy'
         )
 
-        # Display accuracy statistics
+        # Display accuracy and timing statistics
+        print(f"\n=== CROSS-VALIDATION RESULTS ===")
         print(f"Accuracy scores: {scores}")
         print(f"Mean accuracy: {scores.mean():.3f}")
+        print(f"Training times (seconds): {training_times}")
+        print(f"Mean training time: {training_times.mean():.3f}s")
+        print(f"Total training time: {training_times.sum():.3f}s")
+        print(f"Min/Max training time: {training_times.min():.3f}s / {training_times.max():.3f}s")
+
+        # Export a pandas dataframe containing the results
+        if df_export=="y":
+            df=pd.DataFrame(index=range(0),columns=[f"mean_accuracy","mean_total_time","mean_training_time","mean_inference_time","projection_time"])
+            df.loc[0]=[scores.mean(),training_times.mean()+inference_times.mean()+proj_time,training_times.mean(),inference_times.mean(),proj_time]
+            return(df)

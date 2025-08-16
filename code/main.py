@@ -33,14 +33,14 @@ def main():
     
     # Distance metric for k-NN
     parser.add_argument(
-        "-d", "--distance",
+        "-d", "--dist",
         default='euclidean',
         help="Distance metric for KNN (euclidean, dtw, etc.)"
     )
     
     # Number of neighbors for k-NN
     parser.add_argument(
-        "-n", "--n_neighbors",
+        "-n", "--k_neighbors",
         type=int,
         default=1,
         help="Number of neighbors for KNN"
@@ -98,7 +98,7 @@ def main():
     parser.add_argument(
         "--rs1",
         type=int,
-        default=21,
+        default=12,
         help="Random state for projection"
     )
     
@@ -114,7 +114,7 @@ def main():
     parser.add_argument(
         "--rs3",
         type=int,
-        default=21,
+        default=42,
         help="Random state for StratifiedKFold"
     )
     
@@ -125,8 +125,8 @@ def main():
     process(
         path=args.path,
         model=args.model,
-        distance=args.distance,
-        n_neighbors=args.n_neighbors,
+        dist=args.dist,
+        k_neighbors=args.k_neighbors,
         lc=args.lc,
         lc_splits=args.lc_splits,
         proj=args.proj,
