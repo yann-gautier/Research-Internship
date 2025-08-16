@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 import argparse
 
-def merge_timeseries(train_file, test_file, output_file, add_split_column=False):
+def merge_timeseries(train_file, test_file, output_file):
     """
     Merge train and test time series files into a single dataset.
     
@@ -11,7 +11,6 @@ def merge_timeseries(train_file, test_file, output_file, add_split_column=False)
         train_file (str): Path to the training file
         test_file (str): Path to the test file  
         output_file (str): Output file path
-        add_split_column (bool): Whether to add a column indicating data origin (train/test)
     
     Returns:
         pandas.DataFrame: Merged dataset or None if error occurred
@@ -76,11 +75,6 @@ def merge_timeseries(train_file, test_file, output_file, add_split_column=False)
             print("Warning: Column names do not match exactly between train and test files")
             print(f"Train columns: {list(train_data.columns)}")
             print(f"Test columns: {list(test_data.columns)}")
-        
-        # Add split identifier column if requested
-        if add_split_column:
-            train_data['split'] = 'train'
-            test_data['split'] = 'test'
         
         # Merge datasets
         merged_data = pd.concat([train_data, test_data], ignore_index=True)
@@ -158,7 +152,7 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   python merge_timeseries.py --train train.ts --test test.ts --output merged.ts
-  python merge_timeseries.py --train train.csv --test test.csv --output merged.csv --no-split-column
+  python merge_timeseries.py --train train.csv --test test.csv --output merged.csv
         """
     )
     
@@ -167,8 +161,6 @@ Examples:
     
     parser.add_argument('--test', required=True, help='Test dataset file path')
     parser.add_argument('--output', required=True, help='Output file path')
-    parser.add_argument('--no-split-column', action='store_true', 
-                       help='Do not add split identifier column')
     parser.add_argument('--validate', action='store_true',
                        help='Perform data validation after merging')
     
@@ -178,8 +170,7 @@ Examples:
     merged_data = merge_timeseries(
         train_file=args.train,
         test_file=args.test,
-        output_file=args.output,
-        add_split_column=not args.no_split_column
+        output_file=args.output
     )
     
     # Perform validation if requested
