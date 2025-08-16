@@ -86,7 +86,7 @@ def main():
         help="Number of folds for cross-validation"
     )
 
-    #
+    # Plotting the learning curve
     parser.add_argument(
         "--plot",
         choices=['y', 'n'],
@@ -94,7 +94,7 @@ def main():
         help="Plot the learning curve (y) or not (n)"
     )
 
-    #
+    # Return the DataFrame with the results
     parser.add_argument(
         "--df_export",
         choices=['y', 'n'],
@@ -161,3 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
