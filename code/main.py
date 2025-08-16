@@ -51,7 +51,7 @@ def main():
         "-l", "--lc",
         choices=['y', 'n'],
         default='y',
-        help="Use learning curve (y) or not (n)"
+        help="Compute learning curve (y) or not (n)"
     )
     
     # Number of points for the learning curve
@@ -85,7 +85,23 @@ def main():
         default=5,
         help="Number of folds for cross-validation"
     )
-    
+
+    #
+    parser.add_argument(
+        "--plot",
+        choices=['y', 'n'],
+        default='n',
+        help="Plot the learning curve (y) or not (n)"
+    )
+
+    #
+    parser.add_argument(
+        "--df_export",
+        choices=['y', 'n'],
+        default='n',
+        help="Return a DataFrame with the results"
+    )
+
     # Global random state applied to all components
     parser.add_argument(
         "-r", "--rs",
@@ -132,6 +148,8 @@ def main():
         proj=args.proj,
         eps=args.eps,
         cv_splits=args.cv_splits,
+        plot=args.plot,
+        df_export=args.df_export,
         rs=args.rs,
         rs1=args.rs1,
         rs2=args.rs2,
