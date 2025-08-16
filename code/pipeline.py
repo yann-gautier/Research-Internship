@@ -134,7 +134,7 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring=
             np.array(training_times),
             np.array(inference_times))
 
-def process(
+def pipeline(
     path,
     model="knn",
     dist="euclidean",

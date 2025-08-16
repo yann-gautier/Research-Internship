@@ -1,11 +1,11 @@
 import argparse
-from process import process
+from pipeline import pipeline
 
 def main():
     """
     Command-line interface for time series classification with optional random projection.
 
-    This script serves as a front-end for the 'process' function defined in 'process.py'.
+    This script serves as a front-end for the 'pipeline' function defined in 'pipeline.py'.
     It allows users to specify dataset path, model type, projection settings, 
     and evaluation parameters directly from the command line.
     """
@@ -122,7 +122,7 @@ def main():
     args = parser.parse_args()
     
     # Call the processing function with parsed arguments
-    process(
+    pipeline(
         path=args.path,
         model=args.model,
         dist=args.dist,
