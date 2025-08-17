@@ -2,185 +2,360 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import argparse
+import zipfile
+import tarfile
+import shutil
+import tempfile
+import os
+from sktime.datasets import load_from_tsfile_to_dataframe
+
+def write_ts_file(X, y, filepath):
+    """
+    Write time series data to .ts file format.
+    
+    Args:
+        X (pd.DataFrame): Time series data (with lists/arrays in cells)
+        y (pd.Series or None): Labels
+        filepath (str): Output file path
+    """
+    with open(filepath, 'w') as f:
+        # Write problem name
+        problem_name = Path(filepath).stem
+        f.write(f"@problemName {problem_name}\n")
+        
+        # Write timestamp info
+        f.write("@timeStamps false\n")
+        f.write("@missing false\n")
+        f.write("@univariate false\n")
+        
+        # Write dimensions
+        f.write(f"@dimensions {len(X.columns)}\n")
+        
+        # Write equal length (assume all series have same length)
+        if len(X) > 0:
+            first_series = X.iloc[0, 0]
+            if isinstance(first_series, (list, np.ndarray)):
+                series_length = len(first_series)
+            else:
+                series_length = 1
+            f.write(f"@equalLength true\n")
+            f.write(f"@seriesLength {series_length}\n")
+        
+        # Write class labels if they exist
+        if y is not None and not y.isna().all():
+            # Filter out None/NaN values for unique classes
+            valid_labels = y.dropna()
+            if len(valid_labels) > 0:
+                unique_classes = sorted(valid_labels.unique())
+                class_labels = ','.join(map(str, unique_classes))
+                f.write(f"@classLabel true {class_labels}\n")
+            else:
+                f.write("@classLabel false\n")
+        else:
+            f.write("@classLabel false\n")
+        
+        f.write("@data\n")
+        
+        # Write data
+        for idx in range(len(X)):
+            row_data = []
+            for col in X.columns:
+                series = X.iloc[idx, X.columns.get_loc(col)]
+                if isinstance(series, (list, np.ndarray)):
+                    # Convert to comma-separated string
+                    series_str = ','.join(map(str, series))
+                else:
+                    series_str = str(series)
+                row_data.append(series_str)
+            
+            # Add label if exists and is not None/NaN
+            if y is not None and idx < len(y) and pd.notna(y.iloc[idx]):
+                row_data.append(str(y.iloc[idx]))
+            
+            f.write(':'.join(row_data) + '\n')
+
+def convert_arrays_to_lists(df):
+    """
+    Convert numpy arrays to lists in DataFrame cells.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with potential numpy arrays in cells
+        
+    Returns:
+        pd.DataFrame: DataFrame with arrays converted to lists
+    """
+    # Create a completely new DataFrame to avoid pandas indexing issues
+    new_data = {}
+    
+    for col in df.columns:
+        new_column = []
+        for idx in range(len(df)):
+            cell_value = df.iloc[idx, df.columns.get_loc(col)]
+            if isinstance(cell_value, np.ndarray):
+                new_column.append(cell_value.tolist())
+            else:
+                new_column.append(cell_value)
+        new_data[col] = new_column
+    
+    # Create new DataFrame with converted data
+    result_df = pd.DataFrame(new_data, index=df.index)
+    return result_df
 
 def merge_timeseries(train_file, test_file, output_file):
     """
-    Merge train and test time series files into a single dataset.
+    Merge train and test time series files into a single .ts dataset using sktime.
     
     Args:
-        train_file (str): Path to the training file
-        test_file (str): Path to the test file  
-        output_file (str): Output file path
+        train_file (str): Path to the training .ts file
+        test_file (str): Path to the test .ts file  
+        output_file (str): Output .ts file path
     
     Returns:
-        pandas.DataFrame: Merged dataset or None if error occurred
+        bool: True if successful, False otherwise
     """
     
     try:
-        # Read files with automatic format detection
-        def read_ts_file(filepath):
-            """
-            Read a time series file by attempting different formats.
-            
-            Args:
-                filepath (str): Path to the file to read
-                
-            Returns:
-                pandas.DataFrame: Loaded data or None if failed
-            """
-            try:
-                # Try CSV with different separators
-                for sep in [',', '\t', ' ', ';']:
-                    try:
-                        df = pd.read_csv(filepath, sep=sep)
-                        if len(df.columns) > 1:  # If multiple columns, likely correct format
-                            print(f"File {filepath} read with separator '{sep}'")
-                            return df
-                    except:
-                        continue
-                
-                # If previous attempts failed, try line-by-line reading
-                with open(filepath, 'r') as f:
-                    lines = f.readlines()
-                
-                # Detect format from first line
-                first_line = lines[0].strip()
-                if ',' in first_line:
-                    sep = ','
-                elif '\t' in first_line:
-                    sep = '\t'
-                else:
-                    sep = ' '
-                
-                return pd.read_csv(filepath, sep=sep)
-                
-            except Exception as e:
-                print(f"Error reading file {filepath}: {e}")
-                return None
-        
-        # Read input files
-        print("Reading training file...")
-        train_data = read_ts_file(train_file)
-        
-        print("Reading test file...")
-        test_data = read_ts_file(test_file)
-        
-        if train_data is None or test_data is None:
-            raise ValueError("Unable to read one or more input files")
+        # Read files using sktime
+        train_data, train_labels = load_from_tsfile_to_dataframe(train_file)
+        test_data, test_labels = load_from_tsfile_to_dataframe(test_file)
         
         print(f"Train data shape: {train_data.shape}, Test data shape: {test_data.shape}")
         
-        # Validate column compatibility
-        if not train_data.columns.equals(test_data.columns):
-            print("Warning: Column names do not match exactly between train and test files")
-            print(f"Train columns: {list(train_data.columns)}")
-            print(f"Test columns: {list(test_data.columns)}")
+        # Convert numpy arrays to lists for proper concatenation
+        train_data_converted = convert_arrays_to_lists(train_data)
+        test_data_converted = convert_arrays_to_lists(test_data)
         
         # Merge datasets
-        merged_data = pd.concat([train_data, test_data], ignore_index=True)
+        merged_data = pd.concat([train_data_converted, test_data_converted], ignore_index=True)
         
-        # Add temporal index if no explicit time column exists
-        time_columns = [col for col in merged_data.columns 
-                       if any(keyword in col.lower() for keyword in ['time', 'timestamp', 'date'])]
+        # Helper function to convert labels to pandas Series
+        def ensure_series(labels, name='class_vals'):
+            if labels is None:
+                return None
+            elif isinstance(labels, np.ndarray):
+                return pd.Series(labels, name=name)
+            elif isinstance(labels, pd.Series):
+                return labels
+            else:
+                # Convert other types to Series
+                return pd.Series(labels, name=name)
         
-        if not time_columns:
-            merged_data['time_index'] = range(len(merged_data))
-            print("Added temporal index column")
+        # Merge labels if they exist
+        merged_labels = None
+        if train_labels is not None and test_labels is not None:
+            # Convert both to Series if needed
+            train_series = ensure_series(train_labels, 'class_vals')
+            test_series = ensure_series(test_labels, 'class_vals')
+            merged_labels = pd.concat([train_series, test_series], ignore_index=True)
+        elif train_labels is not None:
+            # If only train has labels, create None labels for test
+            train_series = ensure_series(train_labels, 'class_vals')
+            test_none_series = pd.Series([None] * len(test_data), name='class_vals')
+            merged_labels = pd.concat([train_series, test_none_series], ignore_index=True)
+        elif test_labels is not None:
+            # If only test has labels, create None labels for train
+            train_none_series = pd.Series([None] * len(train_data), name='class_vals')
+            test_series = ensure_series(test_labels, 'class_vals')
+            merged_labels = pd.concat([train_none_series, test_series], ignore_index=True)
         
-        # Save merged dataset
-        output_path = Path(output_file)
-        # Use tab separator for .ts files, comma for others
-        sep = '\t' if output_path.suffix == '.ts' else ','
-        merged_data.to_csv(output_file, sep=sep, index=False)
+        # Save merged dataset in .ts format
+        write_ts_file(merged_data, merged_labels, output_file)
         
         print(f"Merge completed successfully: {output_file}")
         print(f"Final dataset shape: {merged_data.shape}")
-        print(f"Columns: {list(merged_data.columns)}")
         
-        # Display data summary
-        print("Dataset preview:")
-        print(merged_data.head())
-        print(f"\nDataset info:")
-        print(merged_data.info())
-        
-        return merged_data
+        return True
         
     except Exception as e:
-        print(f"Merge operation failed: {e}")
-        return None
+        print(f"Merge operation failed for {Path(train_file).parent.name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
-
-
-def validate_timeseries_data(data):
+def extract_archive(archive_path, extract_to):
     """
-    Perform basic validation on time series data.
+    Extract compressed archive to specified directory.
     
     Args:
-        data (pandas.DataFrame): Time series dataset to validate
+        archive_path (str): Path to the compressed file
+        extract_to (str): Directory to extract to
         
     Returns:
-        dict: Validation results and statistics
+        bool: True if successful, False otherwise
     """
-    validation_results = {
-        'shape': data.shape,
-        'missing_values': data.isnull().sum().sum(),
-        'duplicate_rows': data.duplicated().sum(),
-        'numeric_columns': len(data.select_dtypes(include=[np.number]).columns),
-        'categorical_columns': len(data.select_dtypes(include=['object']).columns),
-    }
+    try:
+        archive_path = Path(archive_path)
+        
+        if archive_path.suffix.lower() == '.zip':
+            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_to)
+        elif archive_path.suffix.lower() in ['.tar', '.tar.gz', '.tgz']:
+            with tarfile.open(archive_path, 'r:*') as tar_ref:
+                tar_ref.extractall(extract_to)
+        else:
+            print(f"Unsupported archive format: {archive_path.suffix}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print(f"Failed to extract {archive_path}: {e}")
+        return False
+
+def find_ts_pairs(directory):
+    """
+    Find train/test pairs of .ts files in a directory.
+    Files ending with TRAIN.ts are paired with files ending with TEST.ts
+    with the same base name.
     
-    # Check for temporal ordering if time column exists
-    time_columns = [col for col in data.columns 
-                   if any(keyword in col.lower() for keyword in ['time', 'timestamp', 'date'])]
+    Args:
+        directory (str): Directory to search
+        
+    Returns:
+        tuple: (train_file, test_file, base_name) or None if no valid pair found
+    """
+    ts_files = list(Path(directory).glob("*.ts"))
     
-    if time_columns:
-        time_col = time_columns[0]
-        try:
-            data[time_col] = pd.to_datetime(data[time_col])
-            validation_results['temporal_column'] = time_col
-            validation_results['time_range'] = (data[time_col].min(), data[time_col].max())
-            validation_results['is_sorted'] = data[time_col].is_monotonic_increasing
-        except:
-            validation_results['temporal_parsing_error'] = True
+    if len(ts_files) < 2:
+        return None
     
-    return validation_results
+    # Find files ending with TRAIN.ts and TEST.ts
+    train_files = [f for f in ts_files if f.name.endswith('TRAIN.ts')]
+    test_files = [f for f in ts_files if f.name.endswith('TEST.ts')]
+    
+    if not train_files or not test_files:
+        print(f"Warning: No files ending with TRAIN.ts or TEST.ts found in {directory}")
+        return None
+    
+    # Match pairs by base name
+    for train_file in train_files:
+        # Get base name by removing 'TRAIN.ts'
+        base_name = train_file.name[:-8]  # Remove 'TRAIN.ts'
+        
+        # Look for corresponding test file
+        test_file_name = f"{base_name}TEST.ts"
+        test_file_path = Path(directory) / test_file_name
+        
+        if test_file_path in test_files:
+            return (str(train_file), str(test_file_path), base_name)
+    
+    print(f"Warning: No matching TRAIN/TEST pairs found in {directory}")
+    return None
+
+def batch_merge_compressed_datasets(data_directory, output_directory=None, keep_extracted=False):
+    """
+    Process all compressed files in a directory and merge train/test pairs.
+    
+    Args:
+        data_directory (str): Directory containing compressed files
+        output_directory (str): Directory to save merged files (optional, defaults to data_directory/merged)
+        keep_extracted (bool): Whether to keep extracted files after processing
+    """
+    
+    data_dir = Path(data_directory)
+    
+    # Set default output directory if not provided
+    if output_directory is None:
+        output_dir = data_dir / "merged"
+    else:
+        output_dir = Path(output_directory)
+    
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Find all compressed files
+    compressed_files = []
+    for pattern in ['*.zip', '*.tar', '*.tar.gz', '*.tgz']:
+        compressed_files.extend(data_dir.glob(pattern))
+    
+    if not compressed_files:
+        print("No compressed files found in the specified directory")
+        return
+    
+    print(f"Found {len(compressed_files)} compressed files to process")
+    
+    successful_merges = 0
+    failed_merges = 0
+    
+    # Create temporary directory for extractions
+    with tempfile.TemporaryDirectory() as temp_dir:
+        
+        for archive_file in compressed_files:
+            print(f"\nProcessing: {archive_file.name}")
+            
+            # Create unique extraction directory
+            extract_dir = Path(temp_dir) / archive_file.stem
+            extract_dir.mkdir(exist_ok=True)
+            
+            # Extract archive
+            if not extract_archive(archive_file, extract_dir):
+                print(f"Skipping {archive_file.name} - extraction failed")
+                failed_merges += 1
+                continue
+            
+            # Find .ts file pairs
+            pair_result = find_ts_pairs(extract_dir)
+            
+            if not pair_result:
+                print(f"Skipping {archive_file.name} - no valid TRAIN/TEST pairs found")
+                failed_merges += 1
+                continue
+            
+            train_file, test_file, base_name = pair_result
+            print(f"Found pair: {Path(train_file).name} + {Path(test_file).name}")
+            
+            # Generate output filename using the common base name
+            output_filename = f"{base_name}.ts"
+            output_file = output_dir / output_filename
+            
+            # Perform merge
+            success = merge_timeseries(train_file, test_file, str(output_file))
+            
+            if success:
+                print(f"Successfully merged: {output_filename}")
+                successful_merges += 1
+                
+                # Optionally keep extracted files
+                if keep_extracted:
+                    extracted_dir = output_dir / f"{archive_file.stem}_extracted"
+                    shutil.copytree(extract_dir, extracted_dir)
+                    print(f"Extracted files saved to: {extracted_dir}")
+                    
+            else:
+                print(f"Failed to merge files from {archive_file.name}")
+                failed_merges += 1
+    
+    print(f"\n{'='*50}")
+    print(f"BATCH PROCESSING COMPLETE")
+    print(f"{'='*50}")
+    print(f"Successful merges: {successful_merges}")
+    print(f"Failed merges: {failed_merges}")
+    print(f"Output directory: {output_dir.absolute()}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Merge time series datasets for cross-validation pipelines',
+        description='Batch merge time series datasets from compressed files',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python merge_timeseries.py --train train.ts --test test.ts --output merged.ts
-  python merge_timeseries.py --train train.csv --test test.csv --output merged.csv
+  python batch_merge.py --data-dir ./compressed_datasets
+  python batch_merge.py --data-dir ./compressed_datasets --output-dir ./my_results
+  python batch_merge.py --data-dir ./data --keep-extracted
         """
     )
     
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--train', help='Training dataset file path')
-    
-    parser.add_argument('--test', required=True, help='Test dataset file path')
-    parser.add_argument('--output', required=True, help='Output file path')
-    parser.add_argument('--validate', action='store_true',
-                       help='Perform data validation after merging')
+    parser.add_argument('--data-dir', required=True, 
+                       help='Directory containing compressed files with .ts datasets')
+    parser.add_argument('--output-dir', 
+                       help='Directory to save merged datasets (default: data-dir/merged)')
+    parser.add_argument('--keep-extracted', action='store_true',
+                       help='Keep extracted files after processing')
     
     args = parser.parse_args()
     
-    # Execute merge operation
-    merged_data = merge_timeseries(
-        train_file=args.train,
-        test_file=args.test,
-        output_file=args.output
+    # Execute batch merge
+    batch_merge_compressed_datasets(
+        data_directory=args.data_dir,
+        output_directory=args.output_dir,
+        keep_extracted=args.keep_extracted
     )
-    
-    # Perform validation if requested
-    if args.validate and merged_data is not None:
-        print("Performing data validation...")
-        validation_results = validate_timeseries_data(merged_data)
-        
-        print("\n" + "="*50)
-        print("DATA VALIDATION RESULTS")
-        print("="*50)
-        for key, value in validation_results.items():
-            print(f"{key}: {value}")
-        print("="*50)
