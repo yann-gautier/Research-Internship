@@ -134,8 +134,63 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring=
             np.array(training_times),
             np.array(inference_times))
 
+def load_and_combine_datasets(path, path2=None):
+    """
+    Load and combine time series datasets from .ts files.
+    
+    Args:
+        path (str): Path to the first .ts file
+        path2 (str, optional): Path to the second .ts file to combine
+        
+    Returns:
+        tuple: Combined (X, y) datasets
+        
+    Raises:
+        ValueError: If datasets have incompatible dimensions
+    """
+    # Load the first dataset
+    X, y = load_from_tsfile_to_dataframe(path)
+    
+    if path2 is not None:
+        X2, y2 = load_from_tsfile_to_dataframe(path2)
+        
+        # Compatibility checks
+        if X.shape[1] != X2.shape[1]:
+            raise ValueError(f"Incompatible number of dimensions: {X.shape[1]} vs {X2.shape[1]}")
+        
+        # Check if column names match
+        if not X.columns.equals(X2.columns):
+            print("Warning: Column names differ, using position-based concatenation")
+        
+        # Check for different series lengths (if applicable)
+        try:
+            if hasattr(X.iloc[0, 0], '__len__') and hasattr(X2.iloc[0, 0], '__len__'):
+                len1 = len(X.iloc[0, 0])
+                len2 = len(X2.iloc[0, 0])
+                if len1 != len2:
+                    print(f"Warning: Different series lengths: {len1} vs {len2}")
+        except (IndexError, TypeError):
+            # Handle cases where series structure is different
+            pass
+        
+        # Check label compatibility
+        unique_y1 = set(y.unique())
+        unique_y2 = set(y2.unique())
+        if unique_y1 != unique_y2:
+            print(f"Info: Different label sets found - Dataset 1: {unique_y1}, Dataset 2: {unique_y2}")
+        
+        # Concatenation with index reset
+        X = pd.concat([X, X2], axis=0, ignore_index=True)
+        y = pd.concat([y, y2], axis=0, ignore_index=True)
+        
+        print(f"Combined dataset: {len(X)} samples, {X.shape[1]} dimensions")
+        print(f"Class distribution: {y.value_counts().to_dict()}")
+    
+    return X, y
+
 def pipeline(
     path,
+    path2=None,
     model="knn",
     dist="euclidean",
     k_neighbors=1,
@@ -162,6 +217,9 @@ def pipeline(
     ----------
     path : str
         Path to the '.ts' file containing the time series dataset.
+    path2 : str, optional
+        Path to a second '.ts' file to combine with the first dataset.
+        If provided, the datasets will be concatenated.
     model : {"knn", "ee", "hivecotev1", "hivecotev2"}, default="knn"
         Classification model to use:
             - "knn": k-Nearest Neighbors classifier for time series.
@@ -210,7 +268,7 @@ def pipeline(
     """
 
     # Load dataset from the given .ts file path
-    X, y = load_from_tsfile_to_dataframe(path)
+    X, y = load_and_combine_datasets(path,path2=path2)
 
     # Validate projection method
     if proj not in ["gaussian", "sparse", "no"]:
