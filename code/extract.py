@@ -159,16 +159,16 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   # Basic extraction (uses default folder name 'extracted_ts')
-  python zip_ts_extractor.py ./input
+  python extract.py ./input
   
   # With custom folder name
-  python zip_ts_extractor.py ./input --folder my_ts_files
+  python extract.py ./input --folder my_ts_files
   
   # With path saving to file
-  python zip_ts_extractor.py ./input --save-paths ts_paths.txt
+  python extract.py ./input --save-paths ts_paths.txt
   
   # Complete example with custom folder and path saving
-  python zip_ts_extractor.py ./input --folder extracted_ts --save-paths paths.txt
+  python extract.py ./input --folder extracted_ts --save-paths paths.txt
         """
     )
     
