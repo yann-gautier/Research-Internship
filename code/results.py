@@ -1,7 +1,7 @@
 from pipeline import pipeline
 import pandas as pd
 
-def concat(path):
+def concat(path,path2=None):
     """Generate all experiment combinations for a single dataset"""
     results_list = []
     
@@ -13,7 +13,8 @@ def concat(path):
     for proj in projections:
         for k in k_values:
             df = pipeline(
-                path=path, 
+                path=path,
+                path2=path2, 
                 model="knn", 
                 dist="dtw", 
                 k_neighbors=k, 
@@ -25,7 +26,8 @@ def concat(path):
         
         # Elastic Ensemble for each projection
         df = pipeline(
-            path=path, 
+            path=path,
+            path2=path2, 
             model="ee", 
             proj=proj, 
             cv_splits=5, 

@@ -6,7 +6,7 @@ def reproduce():
     Command-line interface to reproduce the results obtained through our experiments.
     
     Note :
-    One should examine the entry format
+        One should examine the entry format
     """
     
     # Create an argument parser for command-line execution

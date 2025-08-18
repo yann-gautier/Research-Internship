@@ -23,6 +23,13 @@ def main():
         help="Path to the .ts file containing the dataset"
     )
     
+    # Path to the second .ts file containing the dataset to concatenate with the first dataset
+    parser.add_argument(
+        "--path2", 
+        default=None,
+        help="Path to the second .ts file containing the dataset to concantenate with the first dataset"
+    )
+
     # Model type selection
     parser.add_argument(
         "-m", "--model",
@@ -140,6 +147,7 @@ def main():
     # Call the processing function with parsed arguments
     pipeline(
         path=args.path,
+        path2=args.path2,
         model=args.model,
         dist=args.dist,
         k_neighbors=args.k_neighbors,
