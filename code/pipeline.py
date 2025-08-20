@@ -174,14 +174,14 @@ def load_and_combine_datasets(path, path2=None):
             pass
         
         # Check label compatibility
-        unique_y1 = set(y.unique())
-        unique_y2 = set(y2.unique())
+        unique_y1 = set(np.unique(y))
+        unique_y2 = set(np.unique(y2))
         if unique_y1 != unique_y2:
             print(f"Info: Different label sets found - Dataset 1: {unique_y1}, Dataset 2: {unique_y2}")
         
         # Concatenation with index reset
         X = pd.concat([X, X2], axis=0, ignore_index=True)
-        y = pd.concat([y, y2], axis=0, ignore_index=True)
+        y = pd.concat([pd.Series(y), pd.Series(y2)], axis=0, ignore_index=True)
         
         print(f"Combined dataset: {len(X)} samples, {X.shape[1]} dimensions")
         print(f"Class distribution: {y.value_counts().to_dict()}")
@@ -329,11 +329,13 @@ def pipeline(
             columns = [f"{col} {i+1}"
                     for i in range(len(mean_training_times))
                     for col in ["mean_accuracy", "mean_total_time", "mean_training_time", "mean_inference_time", "projection_time"]]
+            
+            proj_time_array = np.full_like(mean_training_times, proj_time)
 
             df = pd.DataFrame(index=range(1), columns=columns)
             df.loc[0]=[elt[i]
                 for i in range(len(mean_training_times))
-                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time]
+                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time_array]
             ]
 
         if plot!="n":

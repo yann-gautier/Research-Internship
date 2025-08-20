@@ -28,9 +28,9 @@ def concat(path,path2=None):
         df = pipeline(
             path=path,
             path2=path2, 
-            model="ee", 
-            proj=proj, 
-            cv_splits=5, 
+            model="ee",
+            proj=proj,
+            cv_splits=5,
             df_export="y"
         )
         results_list.append(df)
@@ -42,10 +42,19 @@ def results(paths):
     print(f"Processing {len(paths)} datasets...")
     
     all_results = []
-    for i, path in enumerate(paths, 1):
-        print(f"[{i}/{len(paths)}] Processing: {path}")
-        df = concat(path)
-        all_results.append(df)
+    for i in range(0, len(paths), 2):
+        print(f"[{i/2+1}/{len(paths)/2}] Processing: {paths[i]} and {paths[i+1]}")
+        try:
+            df = concat(paths[i],paths[i+1])
+            all_results.append(df)
+        except Exception as e:
+            print(f"Error processing {paths[i]} and {paths[i+1]}: {e}")
+            print("Continuing with next dataset pair...")
+            continue
+    
+    if not all_results:
+        print("No datasets were processed successfully!")
+        return None
     
     final_df = pd.concat(all_results, axis=0, ignore_index=True)
     
