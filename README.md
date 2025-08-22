@@ -45,8 +45,8 @@ Arguments:
 --rs3            : Random state for StratifiedKFold (optional, default 42)
 
 Examples:
-> python main.py --
-> python main.py --
+> python main.py --path "input/worms/Worms_TRAIN.ts" --path2 "input/worms/Worms_TEST.ts" --model knn --dist dtw --plot y
+> python main.py --path "input/worms/Worms_TRAIN.ts" --path2 "input/worms/Worms_TEST.ts" --model ee --lc n --proj sparse --rs1 42
 ```
 
 ### Reproducing the Experiments
@@ -58,7 +58,7 @@ Arguments:
 -p --paths : dataset paths
 
 Example:
-> python reproducibility.py --paths
+> python reproducibility.py --paths "input/worms/Worms_TRAIN.ts" "input/worms/Worms_TEST.ts"
 ```
 
 The script implementing the experimentations is stored in [results.py](code/results.py).
