@@ -6,7 +6,7 @@ def concat(path,path2=None):
     results_list = []
     
     # Configuration
-    k_values = [1, 3, 5, 7, 9, 11, 15, 21, 31]
+    k_values = [1]
     projections = ["gaussian", "sparse", "no"]
     
     # KNN with different neighbors values and projections

@@ -4,8 +4,66 @@ This project explores supervised classification of time series with a focus on d
 It provides a configurable and modular framework for experimenting with different parameters, enabling reproducible benchmarks.
 The study also includes an in-depth analysis of learning curves to understand the trade-offs between model complexity, accuracy, and data size.
 
-To be documented: the returns of the process function, with thee pandas dataframe structure
+In our experiments, we evaluate k-values = [1] for the nearest neighbors using DTW as the distance measure and the EE model. We consider three settings: Gaussian projection, sparse projection, and no projection. This results in 6 distinct model configurations, each assessed across 10 different training set sizes, leading to 60 trained models in total. Each configuration is further validated with 5-fold cross-validation, amounting to 300 training runs overall.
 
-To be done: the reproducibility file enabling to generate our results
+## Code
 
-In our experiments, we evaluate k-values = [1, 3, 5, 7, 9, 11, 15, 21, 31] for the nearest neighbors using DTW as the distance measure and the EE model. We consider three settings: Gaussian projection, sparse projection, and no projection. This results in 28 distinct model configurations, each assessed across 10 different training set sizes, leading to 300 trained models in total. Each configuration is further validated with 5-fold cross-validation, amounting to 1,500 training runs overall.
+- [pipeline.py](pipeline.py) : the pipeline with all parameters
+- [projection.py](projection.py) : the function that applies the random projection to the times series dataset
+- [jl_adjustment.py](jl_adjustment.py) : the function that computes the size of the reduced dimensionality
+
+### Requirements
+
+- Python
+- numpy
+- pandas
+- sktime
+- scikit-learn
+- matplotlib
+
+### Using the pipeline
+
+[main.py](main.py)
+
+```bash
+Arguments:
+-p --path        : Path to the .ts file containing the dataset
+--path2          : Path to the second .ts file containing the dataset to concatenate with the first dataset (optional, default None)
+-m --model       : Type of model to use (optional, default knn)
+-d --dist        : Distance metric for KNN (optional, default euclidean)
+-n --k_neighbors : Number of neighbors for KNN (optional, default 1)
+-l --lc          : Compute learning curve (y) or not (n) (optional, default 'y')
+--lc_splits      : Number of points for the learning curve (optional, default 10)
+--proj           : Type of random projection (optional, default 'gaussian')
+--eps            : Epsilon parameter for the distortion accepted through projection (optional, default 0.2)
+--cv_splits      : Number of folds for cross-validation (optional, default 5)
+--plot           : Plot the learning curve (y) or not (n) (optional, default 'n')
+--df_export      : Return a DataFrame with the results (optional, default='n')
+-r --rs          : Global random state (applied to all components) (optional, default None)
+--rs1            : Random state for projection (optional, default 12)
+--rs2            : Random state for the classifier (optional, default 21)
+--rs3            : Random state for StratifiedKFold (optional, default 42)
+
+Examples:
+> python main.py --
+> python main.py --
+```
+
+### Reproducing the Experiments
+
+[reproducibility.py](reproducibility.py)
+
+```bash
+Arguments:
+-p --paths : dataset paths
+
+Example:
+> python reproducibility.py --paths
+```
+
+The script implementing the experimentations is stored in [results.py](results.py).
+It returns a csv file with one line for a dataset and each model used adds 5 columns : mean_accuracy, mean_total_time, mean_training_time, mean_inference_time, projection_time
+
+## To be done
+
+To be documented: the returns of the pipeline function, with the pandas dataframe structure

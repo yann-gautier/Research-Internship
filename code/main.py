@@ -27,7 +27,7 @@ def main():
     parser.add_argument(
         "--path2", 
         default=None,
-        help="Path to the second .ts file containing the dataset to concantenate with the first dataset"
+        help="Path to the second .ts file containing the dataset to concatenate with the first dataset"
     )
 
     # Model type selection
