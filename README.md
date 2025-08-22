@@ -8,9 +8,9 @@ In our experiments, we evaluate k-values = [1] for the nearest neighbors using D
 
 ## Code
 
-- [pipeline.py](pipeline.py) : the pipeline with all parameters
-- [projection.py](projection.py) : the function that applies the random projection to the times series dataset
-- [jl_adjustment.py](jl_adjustment.py) : the function that computes the size of the reduced dimensionality
+- [pipeline.py](code/pipeline.py) : the pipeline with all parameters
+- [projection.py](code/projection.py) : the function that applies the random projection to the times series dataset
+- [jl_adjustment.py](code/jl_adjustment.py) : the function that computes the size of the reduced dimensionality
 
 ### Requirements
 
@@ -23,7 +23,7 @@ In our experiments, we evaluate k-values = [1] for the nearest neighbors using D
 
 ### Using the pipeline
 
-[main.py](main.py)
+[main.py](code/main.py)
 
 ```bash
 Arguments:
@@ -51,7 +51,7 @@ Examples:
 
 ### Reproducing the Experiments
 
-[reproducibility.py](reproducibility.py)
+[reproducibility.py](code/reproducibility.py)
 
 ```bash
 Arguments:
@@ -61,7 +61,7 @@ Example:
 > python reproducibility.py --paths
 ```
 
-The script implementing the experimentations is stored in [results.py](results.py).
+The script implementing the experimentations is stored in [results.py](code/results.py).
 It returns a csv file with one line for a dataset and each model used adds 5 columns : mean_accuracy, mean_total_time, mean_training_time, mean_inference_time, projection_time
 
 ## To be done
