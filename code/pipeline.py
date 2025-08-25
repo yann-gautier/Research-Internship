@@ -45,6 +45,10 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, proj='gaussian', eps
         Training time for each fold
     inference_times : array  
         Inference time for each fold
+    proj_time : float
+        Time taken for the projection step
+    reduced_dim : int
+        The dimension of the time series after projection
     """
     scores = []
     training_times = []
@@ -59,7 +63,12 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, proj='gaussian', eps
         # Apply projection if specified
         if proj!='n':
             start_time = time.time()
-            X_train, X_test = apply_proj(X_train, X_test, projection=proj, epsilon=eps, random_state=rs)
+            X_train, X_test, reduced_dim = apply_proj(X_train,
+                                                      X_test,
+                                                      projection=proj,
+                                                      epsilon=eps,
+                                                      random_state=rs
+                                                      )
             proj_time = time.time() - start_time
         else:
             proj_time = 0
@@ -84,7 +93,7 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, proj='gaussian', eps
         
         print(f"Fold training time: {training_time:.3f}s, Score: {score:.3f}")
     
-    return np.array(scores), np.array(training_times), np.array(inference_times), proj_time
+    return np.array(scores), np.array(training_times), np.array(inference_times), proj_time, reduced_dim
 
 def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='gaussian', eps=0.2, rs=21, scoring='accuracy'):
     """
@@ -124,6 +133,10 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
         Training times for each size and fold
     inference_times : array
         Inference times for each size and fold
+    proj_time : float
+        Time taken for the projection step
+    reduced_dim : int
+        The dimension of the time series after projection
     """
     n_samples = len(X)
     train_sizes_abs = np.array([int(size * n_samples) for size in train_sizes])
@@ -155,7 +168,12 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
             # Apply projection if specified
             if proj!='n':
                 start_time = time.time()
-                X_train, X_test = apply_proj(X_train, X_test, projection=proj, epsilon=eps, random_state=rs)
+                X_train, X_test, reduced_dim = apply_proj(X_train,
+                                                          X_test,
+                                                          projection=proj,
+                                                          epsilon=eps,
+                                                          random_state=rs
+                                                          )
                 proj_time = time.time() - start_time
             else:
                 proj_time = 0
@@ -194,7 +212,8 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
             np.array(test_scores), 
             np.array(training_times),
             np.array(inference_times),
-            proj_time)
+            proj_time,
+            reduced_dim)
 
 def load_and_combine_datasets(path, path2=None):
     """
@@ -377,7 +396,7 @@ def pipeline(
     # If learning curve is requested
     if lc == "y":
         # Compute learning curve data with timing
-        train_sizes, train_scores, test_scores, training_times, inference_times, proj_time = custom_learning_curve_with_timing(
+        train_sizes, train_scores, test_scores, training_times, inference_times, proj_time, reduced_dim = custom_learning_curve_with_timing(
             estimator=est,
             X=X,
             y=y,
@@ -433,14 +452,26 @@ def pipeline(
         if df_export=="y":
             columns = [f"{col} {i+1}"
                     for i in range(len(mean_training_times))
-                    for col in ["mean_accuracy", "mean_total_time", "mean_training_time", "mean_inference_time", "projection_time"]]
+                    for col in ["mean_accuracy",
+                                "mean_total_time",
+                                "mean_training_time",
+                                "mean_inference_time",
+                                "projection_time",
+                                "reduced_dim"]]
             
             proj_time_array = np.full_like(mean_training_times, proj_time)
+            reduced_dim_array = np.full_like(mean_training_times, reduced_dim)
 
             df = pd.DataFrame(index=range(1), columns=columns)
             df.loc[0]=[elt[i]
                 for i in range(len(mean_training_times))
-                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time_array]
+                for elt in [mean_accuracy_scores,
+                            np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,
+                            mean_training_times,
+                            mean_inference_times,
+                            proj_time_array,
+                            reduced_dim_array
+                            ]
             ]
 
             return(df)
@@ -448,7 +479,7 @@ def pipeline(
     else:
         # Perform standard cross-validation with timing
         print("=== CROSS-VALIDATION WITH TIMING ===")
-        scores, training_times, inference_times, proj_time = custom_cross_val_score_with_timing(
+        scores, training_times, inference_times, proj_time, reduced_dim = custom_cross_val_score_with_timing(
             estimator=est,
             X=X,
             y=y,
@@ -470,6 +501,6 @@ def pipeline(
 
         # Export a pandas dataframe containing the results
         if df_export=="y":
-            df=pd.DataFrame(index=range(0),columns=[f"mean_accuracy","mean_total_time","mean_training_time","mean_inference_time","projection_time"])
-            df.loc[0]=[scores.mean(),training_times.mean()+inference_times.mean()+proj_time,training_times.mean(),inference_times.mean(),proj_time]
+            df=pd.DataFrame(index=range(0),columns=[f"mean_accuracy","mean_total_time","mean_training_time","mean_inference_time","projection_time","reduced_dim"])
+            df.loc[0]=[scores.mean(),training_times.mean()+inference_times.mean()+proj_time,training_times.mean(),inference_times.mean(),proj_time,reduced_dim]
             return(df)

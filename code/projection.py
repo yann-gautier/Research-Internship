@@ -77,7 +77,7 @@ def apply_proj(X, X_test=None, projection="gaussian", epsilon=0.2, random_state=
             'dim_0': [pd.Series(row) for row in X_test_proj]
         })
 
-        return X_univariate, X_test_univariate
+        return X_univariate, X_test_univariate, n_components
     
     # Apply the projection
     X_proj = projector.fit_transform(X_tab)
@@ -87,4 +87,4 @@ def apply_proj(X, X_test=None, projection="gaussian", epsilon=0.2, random_state=
         'dim_0': [pd.Series(row) for row in X_proj]
     })
 
-    return X_univariate
+    return X_univariate, n_components
