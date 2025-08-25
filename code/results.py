@@ -60,6 +60,6 @@ def results(paths):
     
     # Export
     final_df.to_csv('reproducibility_output_example.csv', index=False, encoding='utf-8')
-    print(f"Results exported to 'results.csv' ({final_df.shape[0]} rows, {final_df.shape[1]} columns)")
+    print(f"Results exported to 'reproducibility_output_example.csv' ({final_df.shape[0]} rows, {final_df.shape[1]} columns)")
     
     return final_df
