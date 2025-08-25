@@ -69,7 +69,7 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
     
     return np.array(scores), np.array(training_times), np.array(inference_times)
 
-def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring='accuracy'):
+def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='gaussian', scoring='accuracy'):
     """
     Custom version of learning_curve that measures training and inference times.
     
@@ -118,12 +118,17 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring=
         for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y)):
             np.random.shuffle(train_idx)
             np.random.shuffle(test_idx)
+
             # Limit training set size
             train_idx_subset = train_idx[:train_size]
 
             X_train = X.iloc[train_idx_subset] if hasattr(X, 'iloc') else X[train_idx_subset]
             X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
             y_train, y_test = y[train_idx_subset], y[test_idx]
+
+            if proj!='n':
+                X_train = apply_proj(X_train, projection=proj, epsilon=0.2, random_state=21)
+                X_test = apply_proj(X_test, projection=proj, epsilon=0.2, random_state=21)
             
             # Clone the estimator
             est_clone = clone(estimator)
@@ -412,7 +417,7 @@ def pipeline(
                 for i in range(len(mean_training_times))
                 for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time_array]
             ]
-            
+
             return(df)
     
     else:

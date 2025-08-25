@@ -3,7 +3,7 @@ from jl_adjustment import get_jl_output_dim_from_data
 from sktime.datatypes._panel._convert import from_nested_to_2d_array
 import pandas as pd
 
-def apply_proj(X, projection="gaussian", epsilon=0.2, random_state=21):
+def apply_proj(X, X_test=None, projection="gaussian", epsilon=0.2, random_state=21):
     """
     Apply a Johnson-Lindenstrauss backed random projection to multivariate time series data.
 

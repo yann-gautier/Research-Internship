@@ -46,9 +46,7 @@ def results(paths):
         print(f"[{i/2+1}/{len(paths)/2}] Processing: {paths[i]} and {paths[i+1]}")
         try:
             df = concat(paths[i],paths[i+1])
-            df.head()
             all_results.append(df)
-            print(f"TEST: {len(all_results)}")
         except Exception as e:
             print(f"Error processing {paths[i]} and {paths[i+1]}: {e}")
             print("Continuing with next dataset pair...")
