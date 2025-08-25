@@ -27,7 +27,6 @@ def reproduce():
     args = parser.parse_args()
     
     # args.paths
-    print("ça commence")
     results(args.paths)
     
     # Confirmation message
