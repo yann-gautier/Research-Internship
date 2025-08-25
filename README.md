@@ -65,5 +65,3 @@ The script implementing the experimentations is stored in [results.py](code/resu
 It returns a csv file with one line for a dataset and each model used adds 5 columns : mean_accuracy, mean_total_time, mean_training_time, mean_inference_time, projection_time
 
 ## To be done
-
-To be documented: the returns of the pipeline function, with the pandas dataframe structure
