@@ -7,7 +7,7 @@ def concat(path,path2=None):
     
     # Configuration
     k_values = [1]
-    projections = ["gaussian", "sparse", "no"]
+    projections = ["gaussian"]
     
     # KNN with different neighbors values and projections
     for proj in projections:
@@ -16,7 +16,7 @@ def concat(path,path2=None):
                 path=path,
                 path2=path2, 
                 model="knn", 
-                dist="dtw", 
+                dist="euclidean", 
                 k_neighbors=k, 
                 proj=proj, 
                 cv_splits=5, 
@@ -25,15 +25,15 @@ def concat(path,path2=None):
             results_list.append(df)
         
         # Elastic Ensemble for each projection
-        df = pipeline(
-            path=path,
-            path2=path2, 
-            model="ee",
-            proj=proj,
-            cv_splits=5,
-            df_export="y"
-        )
-        results_list.append(df)
+        # df = pipeline(
+        #     path=path,
+        #     path2=path2, 
+        #     model="ee",
+        #     proj=proj,
+        #     cv_splits=5,
+        #     df_export="y"
+        # )
+        # results_list.append(df)
     
     return pd.concat(results_list, axis=1)
 
@@ -46,7 +46,9 @@ def results(paths):
         print(f"[{i/2+1}/{len(paths)/2}] Processing: {paths[i]} and {paths[i+1]}")
         try:
             df = concat(paths[i],paths[i+1])
+            df.head()
             all_results.append(df)
+            print(f"TEST: {len(all_results)}")
         except Exception as e:
             print(f"Error processing {paths[i]} and {paths[i+1]}: {e}")
             print("Continuing with next dataset pair...")

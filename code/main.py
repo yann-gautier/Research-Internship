@@ -72,7 +72,7 @@ def main():
     # Projection type
     parser.add_argument(
         "--proj",
-        choices=['gaussian', 'sparse', 'no'],
+        choices=['gaussian', 'sparse', 'n'],
         default='gaussian',
         help="Type of random projection"
     )

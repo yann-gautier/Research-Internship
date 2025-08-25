@@ -3,19 +3,30 @@ import matplotlib.pyplot as plt
 import time
 from sktime.datasets import load_from_tsfile_to_dataframe
 from projection import apply_proj
-from sklearn.model_selection import learning_curve
+#from sklearn.model_selection import learning_curve
 from sklearn.base import clone
 from sktime.classification.distance_based import ElasticEnsemble
 from sktime.classification.hybrid import HIVECOTEV1
 from sktime.classification.hybrid import HIVECOTEV2
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import cross_val_score
+#from sklearn.model_selection import cross_val_score
 import pandas as pd
 
 def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
     """
     Custom version of cross_val_score that measures training and inference times.
+    
+    Parameters
+    ----------
+    estimator : object
+        The model to use
+    X : array-like
+        Feature dataset
+    y : array-like
+        Target labels
+    cv : cross-validation generator
+        Cross-validation splitting strategy
     
     Returns
     -------
@@ -62,6 +73,19 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring=
     """
     Custom version of learning_curve that measures training and inference times.
     
+    Parameters
+    ----------
+    estimator : object
+        The model to use
+    X : array-like
+        Feature dataset
+    y : array-like
+        Target labels
+    train_sizes : array-like
+        Relative or absolute numbers of training examples that will be used to generate the learning curve
+    cv : cross-validation generator
+        Cross-validation splitting strategy
+    
     Returns
     -------
     train_sizes_abs : array
@@ -90,11 +114,13 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, scoring=
         inference_times_size = []
         
         print(f"\nTraining with {train_size} samples:")
-        
+
         for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y)):
+            np.random.shuffle(train_idx)
+            np.random.shuffle(test_idx)
             # Limit training set size
             train_idx_subset = train_idx[:train_size]
-            
+
             X_train = X.iloc[train_idx_subset] if hasattr(X, 'iloc') else X[train_idx_subset]
             X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
             y_train, y_test = y[train_idx_subset], y[test_idx]
@@ -138,14 +164,20 @@ def load_and_combine_datasets(path, path2=None):
     """
     Load and combine time series datasets from .ts files.
     
-    Args:
-        path (str): Path to the first .ts file
-        path2 (str, optional): Path to the second .ts file to combine
+    Parameters
+    ----------
+    path : str
+        Path to the first .ts file
+    path2 : str, optional
+        Path to the second .ts file to combine with the first dataset
         
-    Returns:
-        tuple: Combined (X, y) datasets
+    Returns
+    -------
+        (X, y): tuple
+            Combined (X, y) datasets
         
-    Raises:
+    Raises
+    ------
         ValueError: If datasets have incompatible dimensions
     """
     # Load the first dataset
@@ -234,11 +266,11 @@ def pipeline(
         Whether to compute a learning curve ("y") or only compute cross-validation scores ("n").
     lc_splits : int, default=10
         Number of training size splits for the learning curve.
-    proj : {"gaussian", "sparse", "no"}, default="gaussian"
+    proj : {"gaussian", "sparse", "n"}, default="gaussian"
         Projection method to apply:
             - "gaussian": Gaussian random projection.
             - "sparse": Sparse random projection.
-            - "no": No projection is applied.
+            - "n": No projection is applied.
     eps : float, default=0.2
         Epsilon parameter for the projection step (controls the projection accuracy).
     cv_splits : int, default=5
@@ -256,6 +288,14 @@ def pipeline(
     rs3 : int, default=21
         Random seed for cross-validation splitting.
 
+    Returns
+    -------
+    df : pandas.DataFrame, optional
+        If 'df_export="y"', returns a dataframe containing the results.
+        The dataframe includes mean accuracy, mean total time, mean training time,
+        mean inference time, and projection time for each training size (if learning curve is computed).
+        If 'df_export="n"', returns None.
+    
     Raises
     ------
     ValueError
@@ -271,8 +311,8 @@ def pipeline(
     X, y = load_and_combine_datasets(path,path2=path2)
 
     # Validate projection method
-    if proj not in ["gaussian", "sparse", "no"]:
-        raise ValueError("projection must be 'gaussian', 'sparse', or 'no' if no projection is wanted, default: 'gaussian'")
+    if proj not in ["gaussian", "sparse", "n"]:
+        raise ValueError("projection must be 'gaussian', 'sparse', or 'n' if no projection is wanted, default: 'gaussian'")
     
     # Validate model choice
     if model not in ["knn", "ee", "hivecotev1", "hivecotev2"]:
@@ -283,7 +323,7 @@ def pipeline(
         rs1 = rs2 = rs3 = rs
     
     # Apply projection if enabled
-    if proj != "no":
+    if proj != "n":
         start_time=time.time()
         X = apply_proj(X, projection=proj, epsilon=eps, random_state=rs1)
         proj_time=time.time() - start_time
@@ -324,20 +364,6 @@ def pipeline(
         mean_inference_times = np.mean(inference_times, axis=1)
         std_training_times = np.std(training_times, axis=1)
 
-        # Export a pandas dataframe containing the results
-        if df_export=="y":
-            columns = [f"{col} {i+1}"
-                    for i in range(len(mean_training_times))
-                    for col in ["mean_accuracy", "mean_total_time", "mean_training_time", "mean_inference_time", "projection_time"]]
-            
-            proj_time_array = np.full_like(mean_training_times, proj_time)
-
-            df = pd.DataFrame(index=range(1), columns=columns)
-            df.loc[0]=[elt[i]
-                for i in range(len(mean_training_times))
-                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time_array]
-            ]
-
         if plot!="n":
             # Plot training and validation accuracy curves
             plt.figure(figsize=(12, 4))
@@ -372,6 +398,22 @@ def pipeline(
         print(f"Mean training time per fold: {training_times.mean():.3f}s")
         print(f"Total training time: {training_times.sum():.3f}s")
         print(f"Min/Max training time: {training_times.min():.3f}s / {training_times.max():.3f}s")
+
+        # Export a pandas dataframe containing the results
+        if df_export=="y":
+            columns = [f"{col} {i+1}"
+                    for i in range(len(mean_training_times))
+                    for col in ["mean_accuracy", "mean_total_time", "mean_training_time", "mean_inference_time", "projection_time"]]
+            
+            proj_time_array = np.full_like(mean_training_times, proj_time)
+
+            df = pd.DataFrame(index=range(1), columns=columns)
+            df.loc[0]=[elt[i]
+                for i in range(len(mean_training_times))
+                for elt in [mean_accuracy_scores,np.array(mean_training_times)+np.array(mean_inference_times)+proj_time,mean_training_times,mean_inference_times,proj_time_array]
+            ]
+            
+            return(df)
     
     else:
         # Perform standard cross-validation with timing
