@@ -13,7 +13,7 @@ from sklearn.model_selection import StratifiedKFold
 #from sklearn.model_selection import cross_val_score
 import pandas as pd
 
-def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
+def custom_cross_val_score_with_timing(estimator, X, y, cv, proj='gaussian', eps=0.2, rs=21, scoring='accuracy'):
     """
     Custom version of cross_val_score that measures training and inference times.
     
@@ -27,6 +27,15 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
         Target labels
     cv : cross-validation generator
         Cross-validation splitting strategy
+    proj : {"gaussian", "sparse", "n"}, default="gaussian"
+        Projection method to apply:
+            - "gaussian": Gaussian random projection.
+            - "sparse": Sparse random projection.
+            - "n": No projection is applied.
+    eps : float, default=0.2
+        Epsilon parameter for the projection step (controls the projection accuracy).
+    rs : int, default=21
+        Random seed for the projection step.
     
     Returns
     -------
@@ -47,6 +56,14 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
         X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
         
+        # Apply projection if specified
+        if proj!='n':
+            start_time = time.time()
+            X_train, X_test = apply_proj(X_train, X_test, projection=proj, epsilon=eps, random_state=rs)
+            proj_time = time.time() - start_time
+        else:
+            proj_time = 0
+
         # Clone the estimator for each fold
         est_clone = clone(estimator)
         
@@ -67,9 +84,9 @@ def custom_cross_val_score_with_timing(estimator, X, y, cv, scoring='accuracy'):
         
         print(f"Fold training time: {training_time:.3f}s, Score: {score:.3f}")
     
-    return np.array(scores), np.array(training_times), np.array(inference_times)
+    return np.array(scores), np.array(training_times), np.array(inference_times), proj_time
 
-def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='gaussian', scoring='accuracy'):
+def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='gaussian', eps=0.2, rs=21, scoring='accuracy'):
     """
     Custom version of learning_curve that measures training and inference times.
     
@@ -85,6 +102,15 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
         Relative or absolute numbers of training examples that will be used to generate the learning curve
     cv : cross-validation generator
         Cross-validation splitting strategy
+    proj : {"gaussian", "sparse", "n"}, default="gaussian"
+        Projection method to apply:
+            - "gaussian": Gaussian random projection.
+            - "sparse": Sparse random projection.
+            - "n": No projection is applied.
+    eps : float, default=0.2
+        Epsilon parameter for the projection step (controls the projection accuracy).
+    rs : int, default=21
+        Random seed for the projection step.
     
     Returns
     -------
@@ -126,9 +152,13 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
             X_test = X.iloc[test_idx] if hasattr(X, 'iloc') else X[test_idx]
             y_train, y_test = y[train_idx_subset], y[test_idx]
 
+            # Apply projection if specified
             if proj!='n':
-                X_train = apply_proj(X_train, projection=proj, epsilon=0.2, random_state=21)
-                X_test = apply_proj(X_test, projection=proj, epsilon=0.2, random_state=21)
+                start_time = time.time()
+                X_train, X_test = apply_proj(X_train, X_test, projection=proj, epsilon=eps, random_state=rs)
+                proj_time = time.time() - start_time
+            else:
+                proj_time = 0
             
             # Clone the estimator
             est_clone = clone(estimator)
@@ -163,7 +193,8 @@ def custom_learning_curve_with_timing(estimator, X, y, train_sizes, cv, proj='ga
             np.array(train_scores), 
             np.array(test_scores), 
             np.array(training_times),
-            np.array(inference_times))
+            np.array(inference_times),
+            proj_time)
 
 def load_and_combine_datasets(path, path2=None):
     """
@@ -327,15 +358,6 @@ def pipeline(
     if rs is not None:
         rs1 = rs2 = rs3 = rs
     
-    # Apply projection if enabled
-    if proj != "n":
-        start_time=time.time()
-        X = apply_proj(X, projection=proj, epsilon=eps, random_state=rs1)
-        proj_time=time.time() - start_time
-    
-    else:
-        proj_time=0
-    
     # Initialize the chosen model
     if model == "ee":
         est = ElasticEnsemble(random_state=rs2)
@@ -355,12 +377,15 @@ def pipeline(
     # If learning curve is requested
     if lc == "y":
         # Compute learning curve data with timing
-        train_sizes, train_scores, test_scores, training_times, inference_times = custom_learning_curve_with_timing(
+        train_sizes, train_scores, test_scores, training_times, inference_times, proj_time = custom_learning_curve_with_timing(
             estimator=est,
             X=X,
             y=y,
             train_sizes=np.linspace(0.1, 1.0, lc_splits),
             cv=crv,
+            proj=proj,
+            eps=eps,
+            rs=rs1,
             scoring="accuracy"
         )
 
@@ -423,11 +448,14 @@ def pipeline(
     else:
         # Perform standard cross-validation with timing
         print("=== CROSS-VALIDATION WITH TIMING ===")
-        scores, training_times, inference_times = custom_cross_val_score_with_timing(
+        scores, training_times, inference_times, proj_time = custom_cross_val_score_with_timing(
             estimator=est,
             X=X,
             y=y,
             cv=crv,
+            proj=proj,
+            eps=eps,
+            rs=rs1,
             scoring='accuracy'
         )
 
