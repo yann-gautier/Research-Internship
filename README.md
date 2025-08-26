@@ -62,6 +62,6 @@ Example:
 ```
 
 The script implementing the experimentations is stored in [results.py](code/results.py).
-It returns a csv file with one line for a dataset and each model used adds 5 columns : mean_accuracy, mean_total_time, mean_training_time, mean_inference_time, projection_time
+It returns a csv file with one line for a dataset and each model used adds 6 columns : mean_accuracy, mean_total_time, mean_training_time, mean_inference_time, projection_time, reduced_dimension
 
 ## To be done
