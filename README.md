@@ -58,7 +58,7 @@ Arguments:
 -p --paths : dataset paths
 
 Example:
-> python reproducibility.py --paths ./input/worms/Worms_TRAIN.ts ./input/worms/Worms_TEST.ts
+> python ./input/reproducibility.py --paths ./input/worms/Worms_TRAIN.ts ./input/worms/Worms_TEST.ts
 ```
 
 The script implementing the experimentations is stored in [results.py](code/results.py).
